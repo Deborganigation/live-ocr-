@@ -3,130 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini 2.5 Pro Invoice Extractor</title>
+    <title>Gemini 2.5 AI Invoice Extractor</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f3f4f6;
+            background-color: #f4f7fb;
             margin: 0;
             padding: 20px;
-            color: #374151;
+            color: #334155;
         }
         .main-container {
-            max-width: 1400px;
+            max-width: 900px;
             margin: auto;
             background: white;
-            padding: 30px;
+            padding: 40px;
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
         }
         .header-section {
             text-align: center;
             margin-bottom: 30px;
         }
-        h2 { color: #1f2937; margin-top: 0; font-size: 28px; }
+        h2 { color: #0f172a; margin-top: 0; font-size: 26px; }
         
+        /* Upload Area */
         .upload-area {
             border: 2px dashed #3b82f6;
-            padding: 25px;
-            border-radius: 8px;
+            padding: 30px;
+            border-radius: 10px;
             background-color: #eff6ff;
             text-align: center;
             margin-bottom: 20px;
             transition: all 0.3s;
         }
         .upload-area:hover { background-color: #dbeafe; }
-        input[type="file"] { font-size: 16px; cursor: pointer; }
+        input[type="file"] { font-size: 16px; cursor: pointer; color: #1e40af; }
         
+        /* Status Alerts */
         #statusAlert {
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-            display: none;
-            margin-bottom: 25px;
+            padding: 15px; border-radius: 8px; text-align: center;
+            font-weight: 600; display: none; margin-bottom: 25px;
         }
         .status-processing { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
         .status-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .status-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-        /* Split Workspace Layout */
-        .workspace {
-            display: flex;
-            gap: 25px;
-            display: none; /* Hidden until upload */
-            align-items: flex-start;
+        /* Action Buttons */
+        .action-bar {
+            display: flex; gap: 15px; justify-content: center;
+            margin-bottom: 25px; display: none; /* Hidden until success */
         }
-        .preview-panel {
-            flex: 1;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 6px;
+            font-size: 15px; font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .data-panel {
-            flex: 1.2;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: #4b5563;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 8px;
-        }
+        .btn-view { background-color: #3b82f6; color: white; }
+        .btn-view:hover { background-color: #2563eb; transform: translateY(-2px); }
+        .btn-download { background-color: #10b981; color: white; }
+        .btn-download:hover { background-color: #059669; transform: translateY(-2px); }
 
-        /* Preview Elements */
-        #pdfViewer { width: 100%; height: 600px; border: 1px solid #d1d5db; border-radius: 4px; display: none; }
-        #imgViewer { width: 100%; max-height: 600px; object-fit: contain; border-radius: 4px; display: none; }
+        /* Vertical Data View */
+        .data-container {
+            border: 1px solid #e2e8f0; border-radius: 10px;
+            overflow: hidden; background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: none;
+        }
+        .data-header {
+            background-color: #f8fafc; padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;
+        }
+        .data-row {
+            display: grid; grid-template-columns: 1fr 2fr;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .data-row:last-child { border-bottom: none; }
+        .data-key {
+            background-color: #f8fafc; padding: 12px 20px;
+            font-weight: 600; color: #64748b; border-right: 1px solid #f1f5f9;
+        }
+        .data-value {
+            padding: 12px 20px; color: #0f172a; word-break: break-word;
+        }
+        .empty-val { color: #94a3b8; font-style: italic; }
 
-        /* Table & Buttons */
-        .table-wrapper {
-            overflow-x: auto;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        /* Modal (Popup) for PDF Preview */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
+            align-items: center; justify-content: center;
         }
-        table {
-            width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 14px;
+        .modal-content {
+            background-color: #fff; border-radius: 8px; width: 90%; max-width: 1000px;
+            height: 90vh; display: flex; flex-direction: column; position: relative;
         }
-        th, td { border-bottom: 1px solid #e5e7eb; padding: 12px 16px; text-align: left; }
-        th { background-color: #2563eb; color: white; font-weight: 600; }
-        tr:nth-child(even) { background-color: #f8fafc; }
-        tr:hover { background-color: #f1f5f9; }
-        
-        .action-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+        .modal-header {
+            padding: 15px; border-bottom: 1px solid #ddd; display: flex;
+            justify-content: space-between; align-items: center; background: #f8fafc;
+            border-radius: 8px 8px 0 0;
         }
-        .btn-download {
-            background-color: #10b981; color: white; padding: 10px 20px;
-            border: none; border-radius: 6px; font-size: 15px; cursor: pointer;
-            font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: 0.2s;
+        .close-btn {
+            background: #ef4444; color: white; border: none; border-radius: 4px;
+            padding: 5px 15px; cursor: pointer; font-weight: bold;
         }
-        .btn-download:hover { background-color: #059669; transform: translateY(-1px); }
+        .close-btn:hover { background: #dc2626; }
+        .modal-body { flex: 1; padding: 10px; overflow: hidden; }
+        iframe, img.preview-img { width: 100%; height: 100%; border: none; border-radius: 4px; }
+        img.preview-img { object-fit: contain; }
 
-        @media (max-width: 900px) {
-            .workspace { flex-direction: column; }
-            .preview-panel, .data-panel { width: 100%; }
-        }
     </style>
 </head>
 <body>
 
 <div class="main-container">
     <div class="header-section">
-        <h2>⚡ Gemini 2.5 Invoice Extractor Pro</h2>
-        <p style="color: #6b7280; font-size: 15px;">Smart AI extraction with Document Preview. Upload PDF or Image.</p>
+        <h2>⚡ AI Data Extractor</h2>
+        <p style="color: #64748b; font-size: 15px;">Smart Vertical View & Excel Export.</p>
     </div>
 
     <div class="upload-area">
@@ -135,25 +128,27 @@
 
     <div id="statusAlert"></div>
 
-    <div class="workspace" id="workspaceArea">
-        
-        <div class="preview-panel">
-            <h3 class="section-title">📄 Document Preview</h3>
-            <iframe id="pdfViewer" title="PDF Preview"></iframe>
-            <img id="imgViewer" alt="Image Preview">
-        </div>
+    <div class="action-bar" id="actionBar">
+        <button class="btn btn-view" onclick="openModal()">👁️ View Original Document</button>
+        <button class="btn btn-download" onclick="downloadCSV()">📊 Download Excel (CSV)</button>
+    </div>
 
-        <div class="data-panel">
-            <div class="action-header">
-                <h3 class="section-title" style="margin: 0; border: none;">📊 Extracted Data</h3>
-                <button id="downloadBtn" class="btn-download" onclick="downloadCSV()">📥 Download CSV</button>
-            </div>
-            
-            <div class="table-wrapper">
-                <div id="dashboardArea"></div>
-            </div>
-        </div>
+    <div class="data-container" id="dataContainer">
+        <div class="data-header">📑 Extracted Details</div>
+        <div id="dashboardArea"></div>
+    </div>
+</div>
 
+<div id="docModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 style="margin: 0;">📄 Document Preview</h3>
+            <button class="close-btn" onclick="closeModal()">Close (X)</button>
+        </div>
+        <div class="modal-body">
+            <iframe id="pdfViewer" style="display:none;"></iframe>
+            <img id="imgViewer" class="preview-img" style="display:none;">
+        </div>
     </div>
 </div>
 
@@ -163,76 +158,69 @@
     
     let globalExtractedData = [];
     let masterHeaders = new Set(["File Name"]);
-    let currentObjectUrl = null; // Memory management ke liye
+    let currentObjectUrl = null;
 
     document.getElementById('fileInput').addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
         const statusAlert = document.getElementById('statusAlert');
-        const workspaceArea = document.getElementById('workspaceArea');
+        const actionBar = document.getElementById('actionBar');
+        const dataContainer = document.getElementById('dataContainer');
         const dashboard = document.getElementById('dashboardArea');
         
         // Reset UI
-        workspaceArea.style.display = 'none';
+        actionBar.style.display = 'none';
+        dataContainer.style.display = 'none';
         dashboard.innerHTML = '';
         globalExtractedData = [];
         masterHeaders = new Set(["File Name"]);
 
-        // Show Processing Status
+        // Show Status
         statusAlert.style.display = 'block';
         statusAlert.className = 'status-processing';
-        statusAlert.innerHTML = '⏳ Processing Document with Gemini 2.5 Flash...';
+        statusAlert.innerHTML = '⏳ Processing Document... Please wait.';
 
-        // Set Preview
-        setupDocumentPreview(file);
+        // Prepare File for View
+        if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); }
+        currentObjectUrl = URL.createObjectURL(file);
+        
+        const pdfViewer = document.getElementById('pdfViewer');
+        const imgViewer = document.getElementById('imgViewer');
+        if (file.type === "application/pdf") {
+            pdfViewer.src = currentObjectUrl;
+            pdfViewer.style.display = 'block'; imgViewer.style.display = 'none';
+        } else {
+            imgViewer.src = currentObjectUrl;
+            imgViewer.style.display = 'block'; pdfViewer.style.display = 'none';
+        }
 
         try {
-            // 1. Convert File to Base64 for API
+            // Call Gemini
             const base64Data = await fileToBase64(file);
-            const mimeType = file.type;
-
-            // 2. Call Gemini 2.5 API
-            const extractedJSON = await callGeminiAPI(base64Data, mimeType);
+            const extractedJSON = await callGeminiAPI(base64Data, file.type);
             
-            // 3. Process & Render Data
+            // Process Data
             processDynamicData(extractedJSON, file.name);
-            renderTable();
+            renderVerticalData();
 
-            // Show Success Status & Workspace
+            // Show Success
             statusAlert.className = 'status-success';
-            statusAlert.innerHTML = '✅ Extraction Successful! Review your data below.';
-            workspaceArea.style.display = 'flex';
+            statusAlert.innerHTML = '✅ Extraction Successful!';
+            actionBar.style.display = 'flex';
+            dataContainer.style.display = 'block';
 
         } catch (error) {
             statusAlert.className = 'status-error';
             statusAlert.innerHTML = '❌ Error: ' + error.message;
-            console.error(error);
         }
     });
 
-    // --- Document Viewer Setup ---
-    function setupDocumentPreview(file) {
-        const pdfViewer = document.getElementById('pdfViewer');
-        const imgViewer = document.getElementById('imgViewer');
-        
-        // Purana object URL memory se hata do
-        if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); }
-        
-        currentObjectUrl = URL.createObjectURL(file);
+    // Modal Functions
+    function openModal() { document.getElementById('docModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('docModal').style.display = 'none'; }
 
-        if (file.type === "application/pdf") {
-            pdfViewer.src = currentObjectUrl + "#toolbar=0&navpanes=0"; // Toolbar hide karne ki koshish
-            pdfViewer.style.display = 'block';
-            imgViewer.style.display = 'none';
-        } else if (file.type.startsWith("image/")) {
-            imgViewer.src = currentObjectUrl;
-            imgViewer.style.display = 'block';
-            pdfViewer.style.display = 'none';
-        }
-    }
-
-    // --- File to Base64 ---
+    // File to Base64
     function fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -246,89 +234,69 @@
         });
     }
 
-    // --- Call Gemini 2.5 Flash API ---
+    // Call Gemini
     async function callGeminiAPI(base64Data, mimeType) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        
         const prompt = `
-            You are an expert Data Extractor AI. Read this invoice/bill carefully. Include any handwritten text.
-            Extract all key details (like Invoice No, Date, GSTIN, Total Amount, Sub Total, Vehicle No, Names, etc.).
-            Return the output STRICTLY as a flat JSON object where keys are header names and values are the extracted data.
-            Do not include any markdown formatting like \`\`\`json. Just return the raw JSON object. Example: {"Invoice No": "123", "Date": "12-05-2023"}
+            Extract all key details from this document. 
+            Return STRICTLY as a flat JSON object. Example: {"Invoice No": "123", "Date": "12-05-2023"}
+            Do not use markdown.
         `;
-
         const requestBody = {
-            contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: mimeType, data: base64Data } } ] }]
+            contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: base64Data } }] }]
         };
 
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || "API Connection Failed");
-        }
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
+        if (!response.ok) throw new Error("API Connection Failed");
 
         const data = await response.json();
-        if (!data.candidates || data.candidates.length === 0) throw new Error("No response generated.");
-
         let rawText = data.candidates[0].content.parts[0].text;
         rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-        
         return JSON.parse(rawText);
     }
 
-    // --- Prepare Data for Table ---
+    // Prepare Data
     function processDynamicData(jsonData, fileName) {
         let rowObj = { "File Name": fileName };
         for (const [key, value] of Object.entries(jsonData)) {
-            let cleanKey = key.trim();
-            masterHeaders.add(cleanKey);
-            rowObj[cleanKey] = value;
+            masterHeaders.add(key.trim());
+            rowObj[key.trim()] = value;
         }
         globalExtractedData = [rowObj]; 
     }
 
-    // --- Render Table ---
-    function renderTable() {
+    // Render Vertical Data
+    function renderVerticalData() {
         const dashboard = document.getElementById('dashboardArea');
         if (globalExtractedData.length === 0) return;
 
-        const headersArray = Array.from(masterHeaders);
-        let htmlContent = '<table><thead><tr>';
+        const dataObj = globalExtractedData[0];
+        let htmlContent = '';
         
-        headersArray.forEach(header => { htmlContent += `<th>${header}</th>`; });
-        htmlContent += '</tr></thead><tbody>';
-
-        globalExtractedData.forEach(row => {
-            htmlContent += '<tr>';
-            headersArray.forEach(header => {
-                let cellData = row[header];
-                if (!cellData) {
-                    htmlContent += `<td style="color:#9ca3af; font-style:italic;">N/A</td>`;
-                } else {
-                    htmlContent += `<td>${cellData}</td>`;
-                }
-            });
-            htmlContent += '</tr>';
+        masterHeaders.forEach(key => {
+            let val = dataObj[key];
+            let displayVal = val ? val : '<span class="empty-val">Not Found</span>';
+            htmlContent += `
+                <div class="data-row">
+                    <div class="data-key">${key}</div>
+                    <div class="data-value">${displayVal}</div>
+                </div>
+            `;
         });
-
-        htmlContent += '</tbody></table>';
         dashboard.innerHTML = htmlContent;
     }
 
-    // --- Download CSV ---
+    // Download Horizontal CSV (Excel Format)
     function downloadCSV() {
         if (globalExtractedData.length === 0) return;
 
         const headersArray = Array.from(masterHeaders);
-        let csvContent = "\uFEFF"; // UTF-8 BOM for Excel compatibility
+        let csvContent = "\uFEFF"; // UTF-8 BOM
         
+        // CSV Row 1: Headers (Horizontal)
         csvContent += headersArray.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
         
+        // CSV Row 2: Data (Horizontal)
         globalExtractedData.forEach(row => {
             let rowData = headersArray.map(header => {
                 let cellData = row[header] ? row[header] : "";
@@ -340,9 +308,8 @@
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        
         link.setAttribute("href", url);
-        link.setAttribute("download", "Invoice_Data_Extract.csv");
+        link.setAttribute("download", "Invoice_Data_Excel.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
