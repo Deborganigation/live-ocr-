@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AI Invoice Extractor</title>
+    <title>Gemini 2.5 AI Invoice Extractor</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f4f8; margin: 0; padding: 20px; text-align: center;
         }
         .container {
-            max-width: 900px; margin: auto; background: white; padding: 30px;
+            max-width: 950px; margin: auto; background: white; padding: 30px;
             border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
         }
         h2 { color: #1a365d; margin-top: 0; }
@@ -22,31 +22,33 @@
         input[type="file"] { font-size: 16px; cursor: pointer; }
         
         #status {
-            font-size: 16px; font-weight: bold; margin: 15px 0; padding: 10px;
-            border-radius: 5px; display: none;
+            font-size: 16px; font-weight: bold; margin: 15px 0; padding: 12px;
+            border-radius: 8px; display: none; transition: all 0.3s ease;
         }
         
         table {
-            width: 100%; border-collapse: collapse; margin-top: 20px; white-space: nowrap;
+            width: 100%; border-collapse: collapse; margin-top: 25px; white-space: nowrap;
         }
-        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
-        th { background-color: #2b6cb0; color: white; text-transform: capitalize; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px 15px; text-align: left; }
+        th { background-color: #2b6cb0; color: white; text-transform: capitalize; font-weight: 600; }
         tr:nth-child(even) { background-color: #f7fafc; }
+        tr:hover { background-color: #edf2f7; }
         
         .btn-download {
             background-color: #48bb78; color: white; padding: 12px 24px;
             border: none; border-radius: 6px; font-size: 16px; cursor: pointer;
             display: none; margin: 20px auto 0; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: 0.2s;
         }
-        .btn-download:hover { background-color: #38a169; }
-        .table-wrapper { overflow-x: auto; margin-top: 20px; }
+        .btn-download:hover { background-color: #38a169; transform: translateY(-2px); }
+        .table-wrapper { overflow-x: auto; margin-top: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>✨ Gemini AI Invoice Extractor (Handwriting Supported)</h2>
-    <p style="color: #4a5568;">Upload PDF or Image. Gemini will extract data directly into a dynamic table.</p>
+    <h2>⚡ Gemini 2.5 Invoice Extractor Pro</h2>
+    <p style="color: #4a5568; font-size: 15px;">Smart AI extraction with Handwriting Support. Upload your Invoice (PDF/Image).</p>
 
     <div class="upload-area">
         <input type="file" id="fileInput" accept=".pdf, .png, .jpg, .jpeg">
@@ -54,9 +56,11 @@
 
     <div id="status"></div>
 
-    <button id="downloadBtn" class="btn-download" onclick="downloadCSV()">📥 Download CSV</button>
+    <button id="downloadBtn" class="btn-download" onclick="downloadCSV()">📥 Download Extracted CSV</button>
 
-    <div class="table-wrapper" id="dashboardArea"></div>
+    <div class="table-wrapper">
+        <div id="dashboardArea"></div>
+    </div>
 </div>
 
 <script>
@@ -78,18 +82,22 @@
         statusDiv.style.display = 'block';
         statusDiv.style.backgroundColor = '#fefcbf';
         statusDiv.style.color = '#b7791f';
-        statusDiv.innerHTML = '⏳ Uploading to Gemini AI... Please wait.';
+        statusDiv.innerHTML = '⏳ Processing document... Sending to Gemini 2.5 Flash.';
         dashboard.innerHTML = '';
         downloadBtn.style.display = 'none';
+        
+        // Reset Data for new file
+        globalExtractedData = [];
+        masterHeaders = new Set(["File Name"]);
 
         try {
             // 1. Convert File to Base64
             const base64Data = await fileToBase64(file);
             const mimeType = file.type;
 
-            statusDiv.innerHTML = '🧠 Gemini is reading the document (including handwriting)...';
+            statusDiv.innerHTML = '🧠 Gemini 2.5 is extracting headers, data, and handwriting...';
 
-            // 2. Call Gemini API
+            // 2. Call Gemini API (Updated to 2.5 Flash)
             const extractedJSON = await callGeminiAPI(base64Data, mimeType);
             
             // 3. Process Data
@@ -100,8 +108,8 @@
 
             statusDiv.style.backgroundColor = '#c6f6d5';
             statusDiv.style.color = '#22543d';
-            statusDiv.innerHTML = '✅ Extraction Complete! Data is ready.';
-            downloadBtn.style.display = 'block';
+            statusDiv.innerHTML = '✅ Extraction Successful! Review your data below.';
+            downloadBtn.style.display = 'inline-block';
 
         } catch (error) {
             statusDiv.style.backgroundColor = '#fed7d7';
@@ -127,12 +135,13 @@
         });
     }
 
-    // Gemini API ko request bhejna
+    // Gemini 2.5 API ko request bhejna
     async function callGeminiAPI(base64Data, mimeType) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // UPDATED ENDPOINT: gemini-2.5-flash
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         const prompt = `
-            You are an expert Data Extractor AI. Read this invoice carefully. Include any handwritten text.
+            You are an expert Data Extractor AI. Read this invoice/bill carefully. Include any handwritten text.
             Extract all key details (like Invoice No, Date, GSTIN, Total Amount, Vehicle No, Names, etc.).
             Return the output STRICTLY as a flat JSON object where keys are header names and values are the extracted data.
             Do not include any markdown formatting like \`\`\`json. Just return the raw JSON object. Example: {"Invoice No": "123", "Date": "12-05-2023"}
@@ -155,13 +164,18 @@
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.error.message || "Failed to connect to Gemini API");
+            throw new Error(err.error?.message || "Failed to connect to Gemini API");
         }
 
         const data = await response.json();
+        
+        if (!data.candidates || data.candidates.length === 0) {
+            throw new Error("No response generated by the AI.");
+        }
+
         let rawText = data.candidates[0].content.parts[0].text;
         
-        // Clean JSON formatting if Gemini adds it by mistake
+        // Clean JSON formatting if Gemini adds markdown tags
         rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
         
         return JSON.parse(rawText);
@@ -172,17 +186,22 @@
         let rowObj = { "File Name": fileName };
         
         for (const [key, value] of Object.entries(jsonData)) {
-            masterHeaders.add(key);
-            rowObj[key] = value;
+            let cleanKey = key.trim();
+            // Optional: You can filter out empty values here if needed
+            masterHeaders.add(cleanKey);
+            rowObj[cleanKey] = value;
         }
 
-        globalExtractedData = [rowObj]; // Currently processing one file at a time
+        globalExtractedData = [rowObj]; 
     }
 
     // HTML Table render karna
     function renderTable() {
         const dashboard = document.getElementById('dashboardArea');
-        if (globalExtractedData.length === 0) return;
+        if (globalExtractedData.length === 0) {
+            dashboard.innerHTML = '<p style="color: #718096; padding: 20px;">No data extracted.</p>';
+            return;
+        }
 
         const headersArray = Array.from(masterHeaders);
         let htmlContent = '<table><thead><tr>';
@@ -195,7 +214,12 @@
         globalExtractedData.forEach(row => {
             htmlContent += '<tr>';
             headersArray.forEach(header => {
-                htmlContent += `<td>${row[header] || '<span style="color:#aaa">-</span>'}</td>`;
+                let cellData = row[header];
+                if (cellData === undefined || cellData === null || cellData === "") {
+                    htmlContent += `<td style="color:#a0aec0; font-style:italic;">-</td>`;
+                } else {
+                    htmlContent += `<td>${cellData}</td>`;
+                }
             });
             htmlContent += '</tr>';
         });
@@ -209,22 +233,29 @@
         if (globalExtractedData.length === 0) return;
 
         const headersArray = Array.from(masterHeaders);
-        let csvContent = "data:text/csv;charset=utf-8,";
         
-        csvContent += headersArray.map(h => `"${h}"`).join(",") + "\n";
+        // Adding UTF-8 BOM so Excel opens it correctly with special characters
+        let csvContent = "\uFEFF"; 
         
+        // Headers Row
+        csvContent += headersArray.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
+        
+        // Data Row
         globalExtractedData.forEach(row => {
             let rowData = headersArray.map(header => {
                 let cellData = row[header] ? row[header] : "";
+                // Escape double quotes inside data
                 return `"${cellData.toString().replace(/"/g, '""')}"`;
             });
             csvContent += rowData.join(",") + "\n";
         });
 
-        const encodedUri = encodeURI(csvContent);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "Gemini_Extracted_Invoice.csv");
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", "Gemini_Extracted_Data.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
