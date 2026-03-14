@@ -3,46 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hybrid Extractor: Tesseract + Groq AI</title>
+    <title>AI Data Extractor Pro (Triple-Hybrid Engine)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fb; padding: 20px; }
-        .main-container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .upload-area { border: 2px dashed #3b82f6; padding: 30px; text-align: center; background-color: #eff6ff; border-radius: 10px; margin-bottom: 20px; }
-        #statusAlert { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; display: none; margin-bottom: 20px; }
-        .status-processing { background-color: #e0f2fe; color: #0284c7; }
-        .status-success { background-color: #d1fae5; color: #065f46; }
-        .status-error { background-color: #fee2e2; color: #991b1b; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
-        th { background-color: #1e293b; color: white; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; color: #374151; }
+        .main-container { max-width: 1400px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header-section { text-align: center; margin-bottom: 25px; }
+        h2 { color: #1f2937; margin-top: 0; font-size: 28px; }
+        
+        .upload-area { border: 2px dashed #3b82f6; padding: 25px; border-radius: 8px; background-color: #eff6ff; text-align: center; margin-bottom: 20px; transition: all 0.3s; }
+        .upload-area:hover { background-color: #dbeafe; }
+        input[type="file"] { font-size: 16px; cursor: pointer; }
+        
+        #statusAlert { padding: 15px; border-radius: 8px; text-align: center; font-weight: 600; display: none; margin-bottom: 10px; line-height: 1.5; }
+        #progressText { text-align: center; font-size: 14px; color: #4b5563; font-weight: bold; margin-bottom: 20px; height: 20px; }
+        
+        .status-processing { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .status-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .status-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        .workspace { display: flex; gap: 25px; display: none; align-items: flex-start; }
+        .preview-panel { flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; }
+        .data-panel { flex: 1.2; display: flex; flex-direction: column; }
+        
+        .section-title { font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 15px; color: #4b5563; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+
+        #pdfViewer { width: 100%; height: 600px; border: 1px solid #d1d5db; border-radius: 4px; display: none; }
+        #imgViewer { width: 100%; max-height: 600px; object-fit: contain; border-radius: 4px; display: none; }
+
+        .data-container { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; }
+        .data-row { display: grid; grid-template-columns: 1fr 2fr; border-bottom: 1px solid #f1f5f9; }
+        .data-row:last-child { border-bottom: none; }
+        .data-key { background-color: #f8fafc; padding: 12px 15px; font-weight: 600; color: #475569; border-right: 1px solid #f1f5f9; }
+        .data-value { padding: 12px 15px; color: #0f172a; word-break: break-word; }
+        
+        .action-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .btn-download { background-color: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-download:hover { background-color: #059669; transform: translateY(-1px); }
+
+        @media (max-width: 900px) { .workspace { flex-direction: column; } .preview-panel, .data-panel { width: 100%; } }
     </style>
 </head>
 <body>
 
 <div class="main-container">
-    <h2 style="text-align: center;">⚡ Hybrid Engine: Tesseract OCR + Groq AI</h2>
-    <p style="text-align: center; color: #64748b;">Unlimited free local OCR, powered by AI JSON structuring.</p>
+    <div class="header-section">
+        <h2>⚡ Triple-Hybrid AI Extractor</h2>
+        <p style="color: #6b7280; font-size: 15px;">Local OCR + Triple Failover (Gemini ➡️ Groq ➡️ OpenRouter).</p>
+    </div>
 
     <div class="upload-area">
         <input type="file" id="fileInput" accept=".pdf, .png, .jpg, .jpeg">
     </div>
 
     <div id="statusAlert"></div>
-    <div id="progressText" style="text-align: center; font-size: 14px; color: #666; margin-bottom: 20px;"></div>
+    <div id="progressText"></div>
 
-    <div id="dashboardArea"></div>
+    <div class="workspace" id="workspaceArea">
+        <div class="preview-panel">
+            <h3 class="section-title">📄 Document Preview</h3>
+            <iframe id="pdfViewer" title="PDF Preview"></iframe>
+            <img id="imgViewer" alt="Image Preview">
+        </div>
+
+        <div class="data-panel">
+            <div class="action-header">
+                <h3 class="section-title" id="successHeader" style="margin: 0; border: none;">📊 Extracted Data</h3>
+                <button id="downloadBtn" class="btn-download" onclick="downloadCSV()">📥 Download Excel (CSV)</button>
+            </div>
+            <div class="data-container" id="dashboardArea"></div>
+        </div>
+    </div>
 </div>
 
 <script>
-    // Set PDF.js Worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    // GROQ API KEY (Sabse fast aur generous free text API)
+    // 🔑 API KEYS
+    const GEMINI_API_KEY = "AIzaSyDKkj8OVteCRmNpBa6buqacgdaiYYTKpJo";
     const GROQ_API_KEY = "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";
+    const OPENROUTER_API_KEY = "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";
+
+    let globalExtractedData = [];
+    let masterHeaders = new Set(["File Name"]);
+    let currentObjectUrl = null;
 
     document.getElementById('fileInput').addEventListener('change', async function(e) {
         const file = e.target.files[0];
@@ -50,49 +97,98 @@
 
         const statusAlert = document.getElementById('statusAlert');
         const progressText = document.getElementById('progressText');
+        const workspaceArea = document.getElementById('workspaceArea');
         const dashboard = document.getElementById('dashboardArea');
+        
+        workspaceArea.style.display = 'none';
+        dashboard.innerHTML = '';
+        progressText.innerText = '';
+        globalExtractedData = [];
+        masterHeaders = new Set(["File Name"]);
 
         statusAlert.style.display = 'block';
         statusAlert.className = 'status-processing';
-        dashboard.innerHTML = '';
+        
+        // Setup Viewer
+        if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); }
+        currentObjectUrl = URL.createObjectURL(file);
+
+        if (file.type === "application/pdf") {
+            document.getElementById('pdfViewer').src = currentObjectUrl + "#toolbar=0";
+            document.getElementById('pdfViewer').style.display = 'block';
+            document.getElementById('imgViewer').style.display = 'none';
+        } else {
+            document.getElementById('imgViewer').src = currentObjectUrl;
+            document.getElementById('imgViewer').style.display = 'block';
+            document.getElementById('pdfViewer').style.display = 'none';
+        }
 
         try {
+            // STEP 1: Image Conversion
             let imageSrc;
-            
-            // 1. Check if PDF or Image
             if (file.type === "application/pdf") {
-                statusAlert.innerHTML = '📄 Step 1: Converting PDF to Image...';
+                statusAlert.innerHTML = '📄 Step 1: Converting PDF...';
                 imageSrc = await convertPdfToImage(file);
             } else {
-                imageSrc = URL.createObjectURL(file);
+                imageSrc = currentObjectUrl;
             }
 
-            // 2. Run Local Tesseract OCR (Free, Unlimited, Runs in Browser CPU)
-            statusAlert.innerHTML = '🔍 Step 2: Running Local OCR (Extracting Text)...';
+            // STEP 2: LOCAL OCR (Failsafe for File Limits/CORS)
+            statusAlert.innerHTML = '🔍 Step 2: Running Free Local OCR...';
             const rawText = await runLocalOCR(imageSrc, progressText);
             
-            if (!rawText || rawText.length < 10) throw new Error("Could not read text from document.");
-
-            // 3. Send ONLY TEXT to Groq AI to structure it (Super fast, no data limits)
-            statusAlert.innerHTML = '🤖 Step 3: Structuring Data with Groq Llama 3 API...';
-            progressText.innerText = ''; // Clear progress
+            if (!rawText || rawText.trim().length < 5) throw new Error("Could not extract any text. Image might be blank.");
+            progressText.innerText = ''; 
             
-            const extractedJSON = await structureTextWithGroq(rawText);
+            // Limit text size to prevent AI rejection
+            const safeText = rawText.substring(0, 6000); 
 
-            // 4. Render Table
-            renderTable(extractedJSON, dashboard);
+            // STEP 3: TRIPLE-ENGINE AI FAILOVER (Structuring Data)
+            let extractedJSON;
+            
+            try {
+                // Engine 1: Gemini
+                statusAlert.innerHTML = '🤖 Step 3: Structuring Data...<br>⏳ <b>Attempt 1:</b> Gemini 2.5 API';
+                extractedJSON = await callGeminiTextAPI(safeText);
+                document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via Gemini)';
+            } catch (err1) {
+                console.warn("Gemini Failed:", err1);
+                
+                try {
+                    // Engine 2: Groq
+                    statusAlert.innerHTML = '⚠️ Gemini Failed.<br>⏳ <b>Attempt 2:</b> Groq Llama 3 API';
+                    extractedJSON = await callGroqTextAPI(safeText);
+                    document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via Groq)';
+                } catch (err2) {
+                    console.warn("Groq Failed:", err2);
+                    
+                    try {
+                        // Engine 3: OpenRouter
+                        statusAlert.innerHTML = '⚠️ Groq Failed.<br>⏳ <b>Attempt 3:</b> OpenRouter API';
+                        extractedJSON = await callOpenRouterTextAPI(safeText);
+                        document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via OpenRouter)';
+                    } catch (err3) {
+                        throw new Error(`All 3 AI Engines Failed. Final Error: ${err3.message}`);
+                    }
+                }
+            }
+
+            // Render Results
+            processDynamicData(extractedJSON, file.name);
+            renderVerticalData();
 
             statusAlert.className = 'status-success';
             statusAlert.innerHTML = '✅ Extraction Successful!';
+            workspaceArea.style.display = 'flex';
 
         } catch (error) {
             statusAlert.className = 'status-error';
             statusAlert.innerHTML = '❌ Error: ' + error.message;
-            console.error(error);
+            progressText.innerText = '';
         }
     });
 
-    // --- Convert PDF to Image ---
+    // --- UTILS & OCR ---
     async function convertPdfToImage(file) {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
@@ -105,14 +201,9 @@
         return canvas.toDataURL('image/png');
     }
 
-    // --- Run Local Offline OCR (Tesseract) ---
     async function runLocalOCR(imageSource, progressElement) {
         const worker = await Tesseract.createWorker({
-            logger: m => {
-                if(m.status === 'recognizing text'){
-                    progressElement.innerText = `OCR Progress: ${Math.round(m.progress * 100)}%`;
-                }
-            }
+            logger: m => { if(m.status === 'recognizing text') progressElement.innerText = `OCR Progress: ${Math.round(m.progress * 100)}%`; }
         });
         await worker.loadLanguage('eng');
         await worker.initialize('eng');
@@ -121,46 +212,89 @@
         return text;
     }
 
-    // --- Structure Raw Text using Groq Text API (Very Fast) ---
-    async function structureTextWithGroq(rawText) {
-        const url = "https://api.groq.com/openai/v1/chat/completions";
-        
-        const prompt = `
-            You are a Data Extractor. I have raw text extracted from an invoice using OCR. 
-            Extract all key details (Invoice No, Date, GSTIN, Total Amount, Buyer Name, etc.).
-            Return STRICTLY as a flat JSON object. No markdown.
-            
-            RAW TEXT:
-            ${rawText}
-        `;
+    // --- THE TRIPLE API ENGINES ---
+    const SYSTEM_PROMPT = `You are a Data Extractor. Extract all key details from the raw OCR text below. Return STRICTLY as a flat JSON object (e.g., {"Invoice No": "123", "Date": "12-05-2023"}). No markdown, no explanations. RAW TEXT:\n\n`;
 
-        const requestBody = {
-            model: "llama3-8b-8192", // Fast text model
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.1
-        };
-
+    async function callGeminiTextAPI(text) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: SYSTEM_PROMPT + text }] }] })
         });
-
-        if (!response.ok) throw new Error("Groq API rejected the text processing request.");
-        
+        if (!response.ok) throw new Error("Gemini Rejected");
         const data = await response.json();
-        let cleanText = data.choices[0].message.content.replace(/```json/g, "").replace(/```/g, "").trim();
-        return JSON.parse(cleanText);
+        return parseCleanJSON(data.candidates[0].content.parts[0].text);
     }
 
-    // --- Render Table ---
-    function renderTable(jsonData, container) {
-        let html = '<table><thead><tr><th>Field</th><th>Extracted Value</th></tr></thead><tbody>';
+    async function callGroqTextAPI(text) {
+        const url = "https://api.groq.com/openai/v1/chat/completions";
+        const response = await fetch(url, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: SYSTEM_PROMPT + text }], temperature: 0.1 })
+        });
+        if (!response.ok) throw new Error("Groq Rejected");
+        const data = await response.json();
+        return parseCleanJSON(data.choices[0].message.content);
+    }
+
+    async function callOpenRouterTextAPI(text) {
+        const url = "https://openrouter.ai/api/v1/chat/completions";
+        const response = await fetch(url, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com' },
+            body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [{ role: "user", content: SYSTEM_PROMPT + text }], temperature: 0.1 })
+        });
+        if (!response.ok) throw new Error("OpenRouter Rejected");
+        const data = await response.json();
+        return parseCleanJSON(data.choices[0].message.content);
+    }
+
+    function parseCleanJSON(rawString) {
+        let clean = rawString.replace(/```json/g, "").replace(/```/g, "").trim();
+        return JSON.parse(clean);
+    }
+
+    // --- DATA RENDERING & EXPORT ---
+    function processDynamicData(jsonData, fileName) {
+        let rowObj = { "File Name": fileName };
         for (const [key, value] of Object.entries(jsonData)) {
-            html += `<tr><td><strong>${key}</strong></td><td>${value || '-'}</td></tr>`;
+            masterHeaders.add(key.trim());
+            rowObj[key.trim()] = value;
         }
-        html += '</tbody></table>';
-        container.innerHTML = html;
+        globalExtractedData = [rowObj]; 
+    }
+
+    function renderVerticalData() {
+        const dashboard = document.getElementById('dashboardArea');
+        const dataObj = globalExtractedData[0];
+        let htmlContent = '';
+        masterHeaders.forEach(key => {
+            let val = dataObj[key];
+            let displayVal = val ? val : '<span style="color:#9ca3af; font-style:italic;">N/A</span>';
+            htmlContent += `<div class="data-row"><div class="data-key">${key}</div><div class="data-value">${displayVal}</div></div>`;
+        });
+        dashboard.innerHTML = htmlContent;
+    }
+
+    function downloadCSV() {
+        if (globalExtractedData.length === 0) return;
+        const headersArray = Array.from(masterHeaders);
+        let csvContent = "\uFEFF"; 
+        csvContent += headersArray.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
+        globalExtractedData.forEach(row => {
+            let rowData = headersArray.map(header => {
+                let cellData = row[header] ? row[header] : "";
+                return `"${cellData.toString().replace(/"/g, '""')}"`;
+            });
+            csvContent += rowData.join(",") + "\n";
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "Invoice_Data_Excel.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 </script>
 
