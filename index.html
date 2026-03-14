@@ -3,37 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini 2.5 AI Invoice Extractor</title>
+    <title>AI Invoice Extractor (Multi-API Failover)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7fb;
-            margin: 0;
-            padding: 20px;
-            color: #334155;
+            background-color: #f4f7fb; margin: 0; padding: 20px; color: #334155;
         }
         .main-container {
-            max-width: 900px;
-            margin: auto;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            max-width: 900px; margin: auto; background: white; padding: 40px;
+            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);
         }
-        .header-section {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+        .header-section { text-align: center; margin-bottom: 30px; }
         h2 { color: #0f172a; margin-top: 0; font-size: 26px; }
         
         /* Upload Area */
         .upload-area {
-            border: 2px dashed #3b82f6;
-            padding: 30px;
-            border-radius: 10px;
-            background-color: #eff6ff;
-            text-align: center;
-            margin-bottom: 20px;
+            border: 2px dashed #3b82f6; padding: 30px; border-radius: 10px;
+            background-color: #eff6ff; text-align: center; margin-bottom: 20px;
             transition: all 0.3s;
         }
         .upload-area:hover { background-color: #dbeafe; }
@@ -43,6 +29,7 @@
         #statusAlert {
             padding: 15px; border-radius: 8px; text-align: center;
             font-weight: 600; display: none; margin-bottom: 25px;
+            line-height: 1.6;
         }
         .status-processing { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
         .status-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
@@ -51,7 +38,7 @@
         /* Action Buttons */
         .action-bar {
             display: flex; gap: 15px; justify-content: center;
-            margin-bottom: 25px; display: none; /* Hidden until success */
+            margin-bottom: 25px; display: none;
         }
         .btn {
             padding: 12px 24px; border: none; border-radius: 6px;
@@ -74,21 +61,13 @@
             background-color: #f8fafc; padding: 15px 20px;
             border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;
         }
-        .data-row {
-            display: grid; grid-template-columns: 1fr 2fr;
-            border-bottom: 1px solid #f1f5f9;
-        }
+        .data-row { display: grid; grid-template-columns: 1fr 2fr; border-bottom: 1px solid #f1f5f9; }
         .data-row:last-child { border-bottom: none; }
-        .data-key {
-            background-color: #f8fafc; padding: 12px 20px;
-            font-weight: 600; color: #64748b; border-right: 1px solid #f1f5f9;
-        }
-        .data-value {
-            padding: 12px 20px; color: #0f172a; word-break: break-word;
-        }
+        .data-key { background-color: #f8fafc; padding: 12px 20px; font-weight: 600; color: #64748b; border-right: 1px solid #f1f5f9; }
+        .data-value { padding: 12px 20px; color: #0f172a; word-break: break-word; }
         .empty-val { color: #94a3b8; font-style: italic; }
 
-        /* Modal (Popup) for PDF Preview */
+        /* Modal */
         .modal {
             display: none; position: fixed; z-index: 1000; left: 0; top: 0;
             width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
@@ -100,8 +79,7 @@
         }
         .modal-header {
             padding: 15px; border-bottom: 1px solid #ddd; display: flex;
-            justify-content: space-between; align-items: center; background: #f8fafc;
-            border-radius: 8px 8px 0 0;
+            justify-content: space-between; align-items: center; background: #f8fafc; border-radius: 8px 8px 0 0;
         }
         .close-btn {
             background: #ef4444; color: white; border: none; border-radius: 4px;
@@ -118,8 +96,8 @@
 
 <div class="main-container">
     <div class="header-section">
-        <h2>⚡ AI Data Extractor</h2>
-        <p style="color: #64748b; font-size: 15px;">Smart Vertical View & Excel Export.</p>
+        <h2>⚡ Triple-Engine AI Extractor</h2>
+        <p style="color: #64748b; font-size: 15px;">Powered by Gemini, Groq & OpenRouter with Auto-Failover.</p>
     </div>
 
     <div class="upload-area">
@@ -134,7 +112,7 @@
     </div>
 
     <div class="data-container" id="dataContainer">
-        <div class="data-header">📑 Extracted Details</div>
+        <div class="data-header" id="successHeader">📑 Extracted Details</div>
         <div id="dashboardArea"></div>
     </div>
 </div>
@@ -153,9 +131,18 @@
 </div>
 
 <script>
-    // Aapka Gemini API Key
+    // --- 1. API KEYS SETUP ---
     const GEMINI_API_KEY = "AIzaSyDKkj8OVteCRmNpBa6buqacgdaiYYTKpJo";
-    
+    const GROQ_API_KEY = "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";
+    const OPENROUTER_API_KEY = "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";
+
+    // Common Strict Prompt for all 3 APIs
+    const SYSTEM_PROMPT = `
+        You are an expert Data Extractor AI. Extract all key details from this document.
+        Return STRICTLY as a flat JSON object. Example: {"Invoice No": "123", "Date": "12-05-2023"}
+        Do not use markdown formatting like \`\`\`json. Just return the raw JSON output.
+    `;
+
     let globalExtractedData = [];
     let masterHeaders = new Set(["File Name"]);
     let currentObjectUrl = null;
@@ -176,12 +163,7 @@
         globalExtractedData = [];
         masterHeaders = new Set(["File Name"]);
 
-        // Show Status
-        statusAlert.style.display = 'block';
-        statusAlert.className = 'status-processing';
-        statusAlert.innerHTML = '⏳ Processing Document... Please wait.';
-
-        // Prepare File for View
+        // Document Preview
         if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); }
         currentObjectUrl = URL.createObjectURL(file);
         
@@ -196,15 +178,47 @@
         }
 
         try {
-            // Call Gemini
             const base64Data = await fileToBase64(file);
-            const extractedJSON = await callGeminiAPI(base64Data, file.type);
+            const mimeType = file.type;
+
+            // --- WATERFALL FAILOVER LOGIC STARTS HERE ---
+            let extractedJSON;
+            statusAlert.style.display = 'block';
+            statusAlert.className = 'status-processing';
             
-            // Process Data
+            try {
+                // Attempt 1: Gemini Direct
+                statusAlert.innerHTML = '⏳ <b>Attempt 1:</b> Trying Gemini 2.5 API...';
+                extractedJSON = await callGeminiAPI(base64Data, mimeType);
+                document.getElementById('successHeader').innerHTML = '📑 Extracted Details (via Gemini)';
+            } catch (error1) {
+                console.warn("Gemini Failed:", error1.message);
+                
+                try {
+                    // Attempt 2: Groq Vision
+                    statusAlert.innerHTML = `⚠️ Gemini Failed.<br>⏳ <b>Attempt 2:</b> Switching to Groq Llama Vision API...`;
+                    extractedJSON = await callGroqAPI(base64Data, mimeType);
+                    document.getElementById('successHeader').innerHTML = '📑 Extracted Details (via Groq Llama)';
+                } catch (error2) {
+                    console.warn("Groq Failed:", error2.message);
+                    
+                    try {
+                        // Attempt 3: OpenRouter
+                        statusAlert.innerHTML = `⚠️ Groq Failed.<br>⏳ <b>Attempt 3:</b> Switching to OpenRouter API...`;
+                        extractedJSON = await callOpenRouterAPI(base64Data, mimeType);
+                        document.getElementById('successHeader').innerHTML = '📑 Extracted Details (via OpenRouter)';
+                    } catch (error3) {
+                        // All 3 Failed
+                        throw new Error(`All APIs Failed! Last Error: ${error3.message}`);
+                    }
+                }
+            }
+            // --- WATERFALL ENDS HERE ---
+
+            // Process & Render
             processDynamicData(extractedJSON, file.name);
             renderVerticalData();
 
-            // Show Success
             statusAlert.className = 'status-success';
             statusAlert.innerHTML = '✅ Extraction Successful!';
             actionBar.style.display = 'flex';
@@ -212,15 +226,15 @@
 
         } catch (error) {
             statusAlert.className = 'status-error';
-            statusAlert.innerHTML = '❌ Error: ' + error.message;
+            statusAlert.innerHTML = '❌ <b>Final Error:</b> ' + error.message;
         }
     });
 
-    // Modal Functions
+    // --- Modal Functions ---
     function openModal() { document.getElementById('docModal').style.display = 'flex'; }
     function closeModal() { document.getElementById('docModal').style.display = 'none'; }
 
-    // File to Base64
+    // --- File Base64 Convertor ---
     function fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -234,28 +248,87 @@
         });
     }
 
-    // Call Gemini
+    // ==========================================
+    // API 1: GEMINI DIRECT
+    // ==========================================
     async function callGeminiAPI(base64Data, mimeType) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const prompt = `
-            Extract all key details from this document. 
-            Return STRICTLY as a flat JSON object. Example: {"Invoice No": "123", "Date": "12-05-2023"}
-            Do not use markdown.
-        `;
-        const requestBody = {
-            contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: base64Data } }] }]
-        };
+        const requestBody = { contents: [{ parts: [{ text: SYSTEM_PROMPT }, { inlineData: { mimeType: mimeType, data: base64Data } }] }] };
 
         const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
-        if (!response.ok) throw new Error("API Connection Failed");
-
+        if (!response.ok) throw new Error("Gemini Connection Rejected");
+        
         const data = await response.json();
-        let rawText = data.candidates[0].content.parts[0].text;
-        rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-        return JSON.parse(rawText);
+        return parseJSON(data.candidates[0].content.parts[0].text);
     }
 
-    // Prepare Data
+    // ==========================================
+    // API 2: GROQ LLAMA VISION
+    // ==========================================
+    async function callGroqAPI(base64Data, mimeType) {
+        const url = "https://api.groq.com/openai/v1/chat/completions";
+        const requestBody = {
+            model: "llama-3.2-90b-vision-preview",
+            messages: [{
+                role: "user",
+                content: [
+                    { type: "text", text: SYSTEM_PROMPT },
+                    { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                ]
+            }],
+            temperature: 0.1
+        };
+
+        const response = await fetch(url, { 
+            method: 'POST', 
+            headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(requestBody) 
+        });
+        if (!response.ok) throw new Error("Groq Connection Rejected");
+        
+        const data = await response.json();
+        return parseJSON(data.choices[0].message.content);
+    }
+
+    // ==========================================
+    // API 3: OPENROUTER
+    // ==========================================
+    async function callOpenRouterAPI(base64Data, mimeType) {
+        const url = "https://openrouter.ai/api/v1/chat/completions";
+        const requestBody = {
+            model: "google/gemini-2.5-flash", // Using Gemini via OpenRouter as safety net
+            messages: [{
+                role: "user",
+                content: [
+                    { type: "text", text: SYSTEM_PROMPT },
+                    { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                ]
+            }]
+        };
+
+        const response = await fetch(url, { 
+            method: 'POST', 
+            headers: { 
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 
+                'HTTP-Referer': 'https://github.com',
+                'X-Title': 'Invoice Extractor',
+                'Content-Type': 'application/json' 
+            }, 
+            body: JSON.stringify(requestBody) 
+        });
+        if (!response.ok) throw new Error("OpenRouter Connection Rejected");
+        
+        const data = await response.json();
+        return parseJSON(data.choices[0].message.content);
+    }
+
+    // Helper: Clean JSON
+    function parseJSON(rawText) {
+        let cleanText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        return JSON.parse(cleanText);
+    }
+
+    // --- Prepare & Render ---
     function processDynamicData(jsonData, fileName) {
         let rowObj = { "File Name": fileName };
         for (const [key, value] of Object.entries(jsonData)) {
@@ -265,38 +338,25 @@
         globalExtractedData = [rowObj]; 
     }
 
-    // Render Vertical Data
     function renderVerticalData() {
         const dashboard = document.getElementById('dashboardArea');
         if (globalExtractedData.length === 0) return;
-
         const dataObj = globalExtractedData[0];
         let htmlContent = '';
-        
         masterHeaders.forEach(key => {
             let val = dataObj[key];
             let displayVal = val ? val : '<span class="empty-val">Not Found</span>';
-            htmlContent += `
-                <div class="data-row">
-                    <div class="data-key">${key}</div>
-                    <div class="data-value">${displayVal}</div>
-                </div>
-            `;
+            htmlContent += `<div class="data-row"><div class="data-key">${key}</div><div class="data-value">${displayVal}</div></div>`;
         });
         dashboard.innerHTML = htmlContent;
     }
 
-    // Download Horizontal CSV (Excel Format)
+    // --- Download CSV ---
     function downloadCSV() {
         if (globalExtractedData.length === 0) return;
-
         const headersArray = Array.from(masterHeaders);
-        let csvContent = "\uFEFF"; // UTF-8 BOM
-        
-        // CSV Row 1: Headers (Horizontal)
+        let csvContent = "\uFEFF"; 
         csvContent += headersArray.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
-        
-        // CSV Row 2: Data (Horizontal)
         globalExtractedData.forEach(row => {
             let rowData = headersArray.map(header => {
                 let cellData = row[header] ? row[header] : "";
@@ -304,7 +364,6 @@
             });
             csvContent += rowData.join(",") + "\n";
         });
-
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
