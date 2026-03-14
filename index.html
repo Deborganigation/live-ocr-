@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Data Extractor Pro (Triple-Hybrid Engine)</title>
+    <title>AI Extractor & Chat Assistant Pro</title>
     
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -26,14 +26,15 @@
         .status-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
         .workspace { display: flex; gap: 25px; display: none; align-items: flex-start; }
-        .preview-panel { flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; }
-        .data-panel { flex: 1.2; display: flex; flex-direction: column; }
+        .preview-panel { flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; position: sticky; top: 20px; }
+        .data-panel { flex: 1.2; display: flex; flex-direction: column; gap: 20px; }
         
         .section-title { font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 15px; color: #4b5563; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
 
         #pdfViewer { width: 100%; height: 600px; border: 1px solid #d1d5db; border-radius: 4px; display: none; }
         #imgViewer { width: 100%; max-height: 600px; object-fit: contain; border-radius: 4px; display: none; }
 
+        /* Data Table Style */
         .data-container { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; }
         .data-row { display: grid; grid-template-columns: 1fr 2fr; border-bottom: 1px solid #f1f5f9; }
         .data-row:last-child { border-bottom: none; }
@@ -41,18 +42,31 @@
         .data-value { padding: 12px 15px; color: #0f172a; word-break: break-word; }
         
         .action-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .btn-download { background-color: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-download { background-color: #10b981; color: white; }
         .btn-download:hover { background-color: #059669; transform: translateY(-1px); }
 
-        @media (max-width: 900px) { .workspace { flex-direction: column; } .preview-panel, .data-panel { width: 100%; } }
+        /* Q&A Chat Section Style */
+        .qna-container { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-display { height: 250px; overflow-y: auto; padding: 15px; background: #f8fafc; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; border-radius: 8px; max-width: 85%; font-size: 14px; line-height: 1.4; }
+        .msg-user { background: #3b82f6; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+        .msg-ai { background: #e2e8f0; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 0; }
+        .chat-input-area { display: flex; border-top: 1px solid #e2e8f0; padding: 10px; background: #fff; }
+        .chat-input-area input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; }
+        .chat-input-area input:focus { border-color: #3b82f6; }
+        .btn-ask { background-color: #3b82f6; color: white; margin-left: 10px; }
+        .btn-ask:hover { background-color: #2563eb; }
+
+        @media (max-width: 900px) { .workspace { flex-direction: column; } .preview-panel, .data-panel { width: 100%; position: static; } }
     </style>
 </head>
 <body>
 
 <div class="main-container">
     <div class="header-section">
-        <h2>⚡ Triple-Hybrid AI Extractor</h2>
-        <p style="color: #6b7280; font-size: 15px;">100% Dynamic Headers. Local OCR + AI Failover.</p>
+        <h2>⚡ AI Document Assistant & Extractor</h2>
+        <p style="color: #6b7280; font-size: 15px;">Extract dynamic headers and Ask AI any question about the document.</p>
     </div>
 
     <div class="upload-area">
@@ -70,11 +84,26 @@
         </div>
 
         <div class="data-panel">
-            <div class="action-header">
-                <h3 class="section-title" id="successHeader" style="margin: 0; border: none;">📊 Extracted Data</h3>
-                <button id="downloadBtn" class="btn-download" onclick="downloadCSV()">📥 Download Excel (CSV)</button>
+            
+            <div>
+                <div class="action-header">
+                    <h3 class="section-title" id="successHeader" style="margin: 0; border: none;">📊 Extracted Data</h3>
+                    <button id="downloadBtn" class="btn btn-download" onclick="downloadCSV()">📥 Download Excel</button>
+                </div>
+                <div class="data-container" id="dashboardArea"></div>
             </div>
-            <div class="data-container" id="dashboardArea"></div>
+
+            <div class="qna-container">
+                <h3 class="section-title" style="margin: 0; padding: 15px; background: #fff; border-bottom: 1px solid #e2e8f0;">💬 Ask AI about this document</h3>
+                <div class="chat-display" id="chatDisplay">
+                    <div class="msg msg-ai">Hello! I have read the document. What would you like to know?</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="E.g., What is the lorry number?" onkeypress="handleEnter(event)">
+                    <button class="btn btn-ask" onclick="askQuestion()">Send</button>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -90,6 +119,7 @@
     let globalExtractedData = [];
     let masterHeaders = new Set(["File Name"]);
     let currentObjectUrl = null;
+    let savedDocumentText = ""; // 🧠 Memory for Q&A
 
     document.getElementById('fileInput').addEventListener('change', async function(e) {
         const file = e.target.files[0];
@@ -99,13 +129,15 @@
         const progressText = document.getElementById('progressText');
         const workspaceArea = document.getElementById('workspaceArea');
         const dashboard = document.getElementById('dashboardArea');
+        const chatDisplay = document.getElementById('chatDisplay');
         
         workspaceArea.style.display = 'none';
         dashboard.innerHTML = '';
         progressText.innerText = '';
         globalExtractedData = [];
-        // Reset headers for every new file so old headers don't stick around
         masterHeaders = new Set(["File Name"]);
+        savedDocumentText = ""; // Reset memory
+        chatDisplay.innerHTML = '<div class="msg msg-ai">Hello! I have read the document. What would you like to know?</div>'; // Reset chat
 
         statusAlert.style.display = 'block';
         statusAlert.className = 'status-processing';
@@ -125,48 +157,38 @@
         }
 
         try {
-            // STEP 1: Image Conversion
-            let imageSrc;
-            if (file.type === "application/pdf") {
-                statusAlert.innerHTML = '📄 Step 1: Converting PDF...';
-                imageSrc = await convertPdfToImage(file);
-            } else {
-                imageSrc = currentObjectUrl;
-            }
+            // STEP 1: Conversion
+            let imageSrc = (file.type === "application/pdf") ? await convertPdfToImage(file) : currentObjectUrl;
 
             // STEP 2: LOCAL OCR
-            statusAlert.innerHTML = '🔍 Step 2: Running Free Local OCR...';
+            statusAlert.innerHTML = '🔍 Extracting Text via Local OCR...';
             const rawText = await runLocalOCR(imageSrc, progressText);
             
             if (!rawText || rawText.trim().length < 5) throw new Error("Could not extract any text. Image might be blank.");
             progressText.innerText = ''; 
             
-            const safeText = rawText.substring(0, 6000); 
+            // Save safe text in global memory for Q&A feature later
+            savedDocumentText = rawText.substring(0, 6000); 
 
-            // STEP 3: TRIPLE-ENGINE AI FAILOVER
+            // STEP 3: TRIPLE-ENGINE AI FAILOVER (JSON Extraction)
             let extractedJSON;
+            statusAlert.innerHTML = '🤖 Structuring Data (Attempt 1: Gemini)...';
             
             try {
-                // Engine 1: Gemini
-                statusAlert.innerHTML = '🤖 Step 3: Structuring Data...<br>⏳ <b>Attempt 1:</b> Gemini 2.5 API';
-                extractedJSON = await callGeminiTextAPI(safeText);
+                extractedJSON = await callAIEngine(savedDocumentText, "JSON", "GEMINI");
                 document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via Gemini)';
             } catch (err1) {
-                console.warn("Gemini Failed:", err1);
                 try {
-                    // Engine 2: Groq
-                    statusAlert.innerHTML = '⚠️ Gemini Failed.<br>⏳ <b>Attempt 2:</b> Groq Llama 3 API';
-                    extractedJSON = await callGroqTextAPI(safeText);
+                    statusAlert.innerHTML = '⚠️ Gemini Failed. Switching to Groq...';
+                    extractedJSON = await callAIEngine(savedDocumentText, "JSON", "GROQ");
                     document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via Groq)';
                 } catch (err2) {
-                    console.warn("Groq Failed:", err2);
                     try {
-                        // Engine 3: OpenRouter
-                        statusAlert.innerHTML = '⚠️ Groq Failed.<br>⏳ <b>Attempt 3:</b> OpenRouter API';
-                        extractedJSON = await callOpenRouterTextAPI(safeText);
+                        statusAlert.innerHTML = '⚠️ Groq Failed. Switching to OpenRouter...';
+                        extractedJSON = await callAIEngine(savedDocumentText, "JSON", "OPENROUTER");
                         document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via OpenRouter)';
                     } catch (err3) {
-                        throw new Error(`All 3 AI Engines Failed. Final Error: ${err3.message}`);
+                        throw new Error(`All AI Engines Failed.`);
                     }
                 }
             }
@@ -176,7 +198,7 @@
             renderVerticalData();
 
             statusAlert.className = 'status-success';
-            statusAlert.innerHTML = '✅ Extraction Successful!';
+            statusAlert.innerHTML = '✅ Extraction & Processing Successful!';
             workspaceArea.style.display = 'flex';
 
         } catch (error) {
@@ -185,6 +207,90 @@
             progressText.innerText = '';
         }
     });
+
+    // --- Q&A CHAT FEATURE ---
+    function handleEnter(e) {
+        if (e.key === 'Enter') askQuestion();
+    }
+
+    async function askQuestion() {
+        const input = document.getElementById('chatInput');
+        const question = input.value.trim();
+        if (!question || !savedDocumentText) return;
+
+        const chatDisplay = document.getElementById('chatDisplay');
+        
+        // Append User Question
+        chatDisplay.innerHTML += `<div class="msg msg-user">${question}</div>`;
+        input.value = '';
+        chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+        const loaderId = 'loader_' + Date.now();
+        chatDisplay.innerHTML += `<div class="msg msg-ai" id="${loaderId}"><i>Thinking...</i></div>`;
+        chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+        try {
+            // Triple-Engine failover for Q&A answers
+            let answer;
+            try { answer = await callAIEngine(question, "CHAT", "GEMINI"); } 
+            catch (e1) {
+                try { answer = await callAIEngine(question, "CHAT", "GROQ"); } 
+                catch (e2) {
+                    try { answer = await callAIEngine(question, "CHAT", "OPENROUTER"); } 
+                    catch (e3) { throw new Error("Network error. AI is unreachable."); }
+                }
+            }
+            document.getElementById(loaderId).innerHTML = answer;
+        } catch (error) {
+            document.getElementById(loaderId).innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
+        }
+        chatDisplay.scrollTop = chatDisplay.scrollHeight;
+    }
+
+    // --- MASTER AI CALLER (Handles both JSON and Q&A Chats) ---
+    async function callAIEngine(inputText, mode, engine) {
+        let prompt, url, requestBody, headers;
+
+        // Mode specific prompts
+        if (mode === "JSON") {
+            prompt = `You are a strict data extractor. Use exact labels from the document as JSON keys. Do NOT force standard keys. Exclude empty fields. Return STRICTLY as a flat JSON object. RAW TEXT:\n${inputText}`;
+        } else if (mode === "CHAT") {
+            prompt = `You are a helpful assistant. Answer the user's question based strictly on the document text provided below. Keep it concise. \n\nDOCUMENT TEXT:\n${savedDocumentText}\n\nUSER QUESTION:\n${inputText}`;
+        }
+
+        // Engine specific routing
+        if (engine === "GEMINI") {
+            url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            headers = { 'Content-Type': 'application/json' };
+            requestBody = { contents: [{ parts: [{ text: prompt }] }] };
+        } else if (engine === "GROQ") {
+            url = "https://api.groq.com/openai/v1/chat/completions";
+            headers = { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' };
+            requestBody = { model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }], temperature: 0.2 };
+        } else if (engine === "OPENROUTER") {
+            url = "https://openrouter.ai/api/v1/chat/completions";
+            headers = { 'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com' };
+            requestBody = { model: "google/gemini-2.5-flash", messages: [{ role: "user", content: prompt }], temperature: 0.2 };
+        }
+
+        const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(requestBody) });
+        if (!response.ok) throw new Error(`${engine} API Rejected.`);
+        
+        const data = await response.json();
+        
+        // Extract content
+        let content = "";
+        if (engine === "GEMINI") content = data.candidates[0].content.parts[0].text;
+        else content = data.choices[0].message.content;
+
+        // If JSON mode, clean it
+        if (mode === "JSON") {
+            let clean = content.replace(/```json/g, "").replace(/```/g, "").trim();
+            return JSON.parse(clean);
+        } else {
+            return content; // Plain text answer for chat
+        }
+    }
 
     // --- UTILS & OCR ---
     async function convertPdfToImage(file) {
@@ -210,58 +316,10 @@
         return text;
     }
 
-    // --- NEW STRICT DYNAMIC PROMPT ---
-    const SYSTEM_PROMPT = `You are an expert dynamic Data Extractor AI. Read the raw OCR text below and extract key-value pairs. 
-    CRITICAL RULES:
-    1. DYNAMIC HEADERS ONLY: Use the exact labels found in the document as your JSON keys.
-    2. NO FIXED TEMPLATES: Do NOT force standard keys (like "Invoice No", "Date", "Vendor") if they do not explicitly exist in the text.
-    3. NO EMPTY VALUES: If a detail is not in the text, DO NOT create a key for it. Never return "N/A" or "null".
-    4. Return STRICTLY as a flat JSON object. No markdown, no text outside the JSON.
-    RAW TEXT:\n\n`;
-
-    async function callGeminiTextAPI(text) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const response = await fetch(url, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: SYSTEM_PROMPT + text }] }] })
-        });
-        if (!response.ok) throw new Error("Gemini Rejected");
-        const data = await response.json();
-        return parseCleanJSON(data.candidates[0].content.parts[0].text);
-    }
-
-    async function callGroqTextAPI(text) {
-        const url = "https://api.groq.com/openai/v1/chat/completions";
-        const response = await fetch(url, {
-            method: 'POST', headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: SYSTEM_PROMPT + text }], temperature: 0.1 })
-        });
-        if (!response.ok) throw new Error("Groq Rejected");
-        const data = await response.json();
-        return parseCleanJSON(data.choices[0].message.content);
-    }
-
-    async function callOpenRouterTextAPI(text) {
-        const url = "https://openrouter.ai/api/v1/chat/completions";
-        const response = await fetch(url, {
-            method: 'POST', headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com' },
-            body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [{ role: "user", content: SYSTEM_PROMPT + text }], temperature: 0.1 })
-        });
-        if (!response.ok) throw new Error("OpenRouter Rejected");
-        const data = await response.json();
-        return parseCleanJSON(data.choices[0].message.content);
-    }
-
-    function parseCleanJSON(rawString) {
-        let clean = rawString.replace(/```json/g, "").replace(/```/g, "").trim();
-        return JSON.parse(clean);
-    }
-
     // --- DATA RENDERING & EXPORT ---
     function processDynamicData(jsonData, fileName) {
         let rowObj = { "File Name": fileName };
         for (const [key, value] of Object.entries(jsonData)) {
-            // Filter out empty or N/A values just in case AI still hallucinates
             if(value && value.toString().toLowerCase() !== "n/a" && value.toString().toLowerCase() !== "null") {
                 masterHeaders.add(key.trim());
                 rowObj[key.trim()] = value;
@@ -274,18 +332,11 @@
         const dashboard = document.getElementById('dashboardArea');
         const dataObj = globalExtractedData[0];
         let htmlContent = '';
-        
         masterHeaders.forEach(key => {
             let val = dataObj[key];
-            if (val !== undefined) {
-                htmlContent += `<div class="data-row"><div class="data-key">${key}</div><div class="data-value">${val}</div></div>`;
-            }
+            if (val !== undefined) htmlContent += `<div class="data-row"><div class="data-key">${key}</div><div class="data-value">${val}</div></div>`;
         });
-        
-        if(htmlContent === '') {
-            htmlContent = '<div style="padding: 20px; text-align: center; color: #6b7280;">No clear data found in the document.</div>';
-        }
-        
+        if(htmlContent === '') htmlContent = '<div style="padding: 20px; text-align: center; color: #6b7280;">No data found.</div>';
         dashboard.innerHTML = htmlContent;
     }
 
