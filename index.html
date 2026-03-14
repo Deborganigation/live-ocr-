@@ -52,7 +52,7 @@
 <div class="main-container">
     <div class="header-section">
         <h2>⚡ Triple-Hybrid AI Extractor</h2>
-        <p style="color: #6b7280; font-size: 15px;">Local OCR + Triple Failover (Gemini ➡️ Groq ➡️ OpenRouter).</p>
+        <p style="color: #6b7280; font-size: 15px;">100% Dynamic Headers. Local OCR + AI Failover.</p>
     </div>
 
     <div class="upload-area">
@@ -104,6 +104,7 @@
         dashboard.innerHTML = '';
         progressText.innerText = '';
         globalExtractedData = [];
+        // Reset headers for every new file so old headers don't stick around
         masterHeaders = new Set(["File Name"]);
 
         statusAlert.style.display = 'block';
@@ -133,17 +134,16 @@
                 imageSrc = currentObjectUrl;
             }
 
-            // STEP 2: LOCAL OCR (Failsafe for File Limits/CORS)
+            // STEP 2: LOCAL OCR
             statusAlert.innerHTML = '🔍 Step 2: Running Free Local OCR...';
             const rawText = await runLocalOCR(imageSrc, progressText);
             
             if (!rawText || rawText.trim().length < 5) throw new Error("Could not extract any text. Image might be blank.");
             progressText.innerText = ''; 
             
-            // Limit text size to prevent AI rejection
             const safeText = rawText.substring(0, 6000); 
 
-            // STEP 3: TRIPLE-ENGINE AI FAILOVER (Structuring Data)
+            // STEP 3: TRIPLE-ENGINE AI FAILOVER
             let extractedJSON;
             
             try {
@@ -153,7 +153,6 @@
                 document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via Gemini)';
             } catch (err1) {
                 console.warn("Gemini Failed:", err1);
-                
                 try {
                     // Engine 2: Groq
                     statusAlert.innerHTML = '⚠️ Gemini Failed.<br>⏳ <b>Attempt 2:</b> Groq Llama 3 API';
@@ -161,7 +160,6 @@
                     document.getElementById('successHeader').innerHTML = '📊 Extracted Data (via Groq)';
                 } catch (err2) {
                     console.warn("Groq Failed:", err2);
-                    
                     try {
                         // Engine 3: OpenRouter
                         statusAlert.innerHTML = '⚠️ Groq Failed.<br>⏳ <b>Attempt 3:</b> OpenRouter API';
@@ -212,8 +210,14 @@
         return text;
     }
 
-    // --- THE TRIPLE API ENGINES ---
-    const SYSTEM_PROMPT = `You are a Data Extractor. Extract all key details from the raw OCR text below. Return STRICTLY as a flat JSON object (e.g., {"Invoice No": "123", "Date": "12-05-2023"}). No markdown, no explanations. RAW TEXT:\n\n`;
+    // --- NEW STRICT DYNAMIC PROMPT ---
+    const SYSTEM_PROMPT = `You are an expert dynamic Data Extractor AI. Read the raw OCR text below and extract key-value pairs. 
+    CRITICAL RULES:
+    1. DYNAMIC HEADERS ONLY: Use the exact labels found in the document as your JSON keys.
+    2. NO FIXED TEMPLATES: Do NOT force standard keys (like "Invoice No", "Date", "Vendor") if they do not explicitly exist in the text.
+    3. NO EMPTY VALUES: If a detail is not in the text, DO NOT create a key for it. Never return "N/A" or "null".
+    4. Return STRICTLY as a flat JSON object. No markdown, no text outside the JSON.
+    RAW TEXT:\n\n`;
 
     async function callGeminiTextAPI(text) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -257,8 +261,11 @@
     function processDynamicData(jsonData, fileName) {
         let rowObj = { "File Name": fileName };
         for (const [key, value] of Object.entries(jsonData)) {
-            masterHeaders.add(key.trim());
-            rowObj[key.trim()] = value;
+            // Filter out empty or N/A values just in case AI still hallucinates
+            if(value && value.toString().toLowerCase() !== "n/a" && value.toString().toLowerCase() !== "null") {
+                masterHeaders.add(key.trim());
+                rowObj[key.trim()] = value;
+            }
         }
         globalExtractedData = [rowObj]; 
     }
@@ -267,11 +274,18 @@
         const dashboard = document.getElementById('dashboardArea');
         const dataObj = globalExtractedData[0];
         let htmlContent = '';
+        
         masterHeaders.forEach(key => {
             let val = dataObj[key];
-            let displayVal = val ? val : '<span style="color:#9ca3af; font-style:italic;">N/A</span>';
-            htmlContent += `<div class="data-row"><div class="data-key">${key}</div><div class="data-value">${displayVal}</div></div>`;
+            if (val !== undefined) {
+                htmlContent += `<div class="data-row"><div class="data-key">${key}</div><div class="data-value">${val}</div></div>`;
+            }
         });
+        
+        if(htmlContent === '') {
+            htmlContent = '<div style="padding: 20px; text-align: center; color: #6b7280;">No clear data found in the document.</div>';
+        }
+        
         dashboard.innerHTML = htmlContent;
     }
 
@@ -291,7 +305,7 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", "Invoice_Data_Excel.csv");
+        link.setAttribute("download", "Dynamic_Data_Extract.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
