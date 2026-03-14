@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Serverless Invoice Extractor</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa; margin: 0; padding: 20px; text-align: center;
+        }
+        .container {
+            max-width: 900px; margin: auto; background: white; padding: 30px;
+            border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 { color: #2c3e50; margin-top: 0; }
+        .upload-area {
+            border: 2px dashed #3498db; padding: 20px; border-radius: 8px;
+            background-color: #f1f8ff; margin-bottom: 20px;
+        }
+        input[type="file"] { font-size: 16px; cursor: pointer; }
+        
+        #status {
+            font-size: 16px; font-weight: bold; color: #e67e22; margin: 15px 0;
+            display: none;
+        }
+        
+        table {
+            width: 100%; border-collapse: collapse; margin-top: 20px; white-space: nowrap;
+        }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #34495e; color: white; text-transform: capitalize; }
+        
+        .btn-download {
+            background-color: #27ae60; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; font-size: 16px; cursor: pointer;
+            display: none; margin: 20px auto 0; font-weight: bold;
+        }
+        .btn-download:hover { background-color: #219150; }
+        .table-wrapper { overflow-x: auto; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚀 Serverless Invoice OCR & Extractor</h2>
+    <p style="color: #7f8c8d;">Upload a PDF or Image. Everything runs securely in your browser.</p>
+
+    <div class="upload-area">
+        <input type="file" id="fileInput" accept=".pdf, .png, .jpg, .jpeg">
+    </div>
+
+    <div id="status">⏳ Processing... Please wait (OCR takes a few seconds). <br><span id="progressText"></span></div>
+
+    <button id="downloadBtn" class="btn-download" onclick="downloadCSV()">📥 Download CSV</button>
+
+    <div class="table-wrapper" id="dashboardArea"></div>
+</div>
+
+<script>
+    // Set PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    let globalExtractedData = [];
+    let masterHeaders = new Set(["File Name"]);
+
+    document.getElementById('fileInput').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const statusDiv = document.getElementById('status');
+        const progressText = document.getElementById('progressText');
+        const dashboard = document.getElementById('dashboardArea');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Reset UI
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = '#e67e22';
+        statusDiv.innerHTML = '⏳ Initializing...';
+        dashboard.innerHTML = '';
+        downloadBtn.style.display = 'none';
+        globalExtractedData = [];
+        masterHeaders = new Set(["File Name"]);
+
+        try {
+            let extractedText = "";
+
+            if (file.type === "application/pdf") {
+                statusDiv.innerHTML = '📄 Converting PDF to Image...';
+                const imageSrc = await convertPdfToImage(file);
+                statusDiv.innerHTML = '🔍 Running AI OCR Engine... This may take 10-20 seconds.';
+                extractedText = await runOCR(imageSrc);
+            } else if (file.type.startsWith("image/")) {
+                statusDiv.innerHTML = '🔍 Running AI OCR on Image... This may take 10-20 seconds.';
+                const imageUrl = URL.createObjectURL(file);
+                extractedText = await runOCR(imageUrl);
+            } else {
+                throw new Error("Unsupported file format.");
+            }
+
+            statusDiv.innerHTML = '⚙️ Parsing Data (Smart Regex)...';
+            
+            // Process the text dynamically
+            processDynamicData(extractedText, file.name);
+            
+            // Render Table
+            renderTable();
+
+            statusDiv.style.color = '#27ae60';
+            statusDiv.innerHTML = '✅ Extraction Complete!';
+            downloadBtn.style.display = 'block';
+
+        } catch (error) {
+            statusDiv.style.color = '#c0392b';
+            statusDiv.innerHTML = '❌ Error: ' + error.message;
+            console.error(error);
+        }
+    });
+
+    // --- 1. PDF TO IMAGE CONVERTER ---
+    async function convertPdfToImage(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        const page = await pdf.getPage(1); // Read first page only for now
+        
+        const scale = 2.0; // Higher scale = better OCR quality
+        const viewport = page.getViewport({ scale: scale });
+        
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        return canvas.toDataURL('image/png');
+    }
+
+    // --- 2. TESSERACT OCR ENGINE ---
+    async function runOCR(imageSource) {
+        const worker = await Tesseract.createWorker({
+            logger: m => {
+                if(m.status === 'recognizing text'){
+                    document.getElementById('progressText').innerText = `Progress: ${Math.round(m.progress * 100)}%`;
+                }
+            }
+        });
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+        const { data: { text } } = await worker.recognize(imageSource);
+        await worker.terminate();
+        return text;
+    }
+
+    // --- 3. SMART REGEX PARSER (Dynamic Headers) ---
+    function processDynamicData(text, fileName) {
+        let rowObj = { "File Name": fileName };
+        
+        const regexPair = /([A-Za-z0-9\s\.\/]+)\s*[:\-]\s*([^\n]+)/g;
+        let match;
+        
+        while ((match = regexPair.exec(text)) !== null) {
+            let key = match[1].trim().replace(/\s+/g, ' ');
+            let value = match[2].trim();
+            if (key.length >= 2 && key.length <= 35 && value.length > 0) {
+                masterHeaders.add(key);
+                rowObj[key] = value;
+            }
+        }
+
+        // Fallbacks
+        let gstMatch = text.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})\b/);
+        if(gstMatch) { masterHeaders.add("Smart_GSTIN"); rowObj["Smart_GSTIN"] = gstMatch[1]; }
+
+        let amountMatch = text.match(/(?:SUB TOTAL|Grand Total|Total Amount|Total\s*Rs\.?)\s*==?>?\s*([\d,]+\.?\d*)/i);
+        if(amountMatch) { masterHeaders.add("Smart_Total_Amount"); rowObj["Smart_Total_Amount"] = amountMatch[1]; }
+
+        globalExtractedData.push(rowObj);
+    }
+
+    // --- 4. RENDER UI TABLE ---
+    function renderTable() {
+        const dashboard = document.getElementById('dashboardArea');
+        if (globalExtractedData.length === 0) return;
+
+        const headersArray = Array.from(masterHeaders);
+        let htmlContent = '<table><thead><tr>';
+        
+        headersArray.forEach(header => {
+            htmlContent += `<th>${header}</th>`;
+        });
+        htmlContent += '</tr></thead><tbody>';
+
+        globalExtractedData.forEach(row => {
+            htmlContent += '<tr>';
+            headersArray.forEach(header => {
+                htmlContent += `<td>${row[header] || '<span style="color:#aaa">-</span>'}</td>`;
+            });
+            htmlContent += '</tr>';
+        });
+
+        htmlContent += '</tbody></table>';
+        dashboard.innerHTML = htmlContent;
+    }
+
+    // --- 5. EXPORT CSV ---
+    function downloadCSV() {
+        if (globalExtractedData.length === 0) return;
+
+        const headersArray = Array.from(masterHeaders);
+        let csvContent = "data:text/csv;charset=utf-8,";
+        
+        // Headers
+        csvContent += headersArray.map(h => `"${h}"`).join(",") + "\n";
+        
+        // Data Rows
+        globalExtractedData.forEach(row => {
+            let rowData = headersArray.map(header => {
+                let cellData = row[header] ? row[header] : "";
+                return `"${cellData.toString().replace(/"/g, '""')}"`;
+            });
+            csvContent += rowData.join(",") + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "Extracted_Invoice_Data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
